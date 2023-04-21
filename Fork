@@ -1,0 +1,61 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
+
+#define MSG_SIZE 100
+
+void sigint_handler(int sig_num) {
+    printf("\nProgram interrupted!\n");
+    exit(0);
+}
+
+int main()
+ {
+    signal(SIGINT, sigint_handler);
+    int num_of_children, i;
+    printf("Enter the number of child processes to create: ");
+    scanf("%d", &num_of_children);
+
+    int pipefd[2];
+    pid_t child_pid[num_of_children];
+    char parent_msg[MSG_SIZE];
+
+    if (pipe(pipefd) == -1) 
+{
+        perror("Pipe creation failed\n");
+        return 1;
+    }
+
+    for (i = 0; i < num_of_children; i++) 
+{
+        child_pid[i] = fork();
+
+        if (child_pid[i] == -1)
+ { 
+            perror("Child process creation failed\n");
+            return 1;
+        }
+
+        if (child_pid[i] == 0)
+{ 
+            close(pipefd[1]); 
+            char message[MSG_SIZE];
+            read(pipefd[0], message, MSG_SIZE); 
+            printf("Child %d received message: %s", i+1, message);
+            close(pipefd[0]); 
+            exit(0);
+        }
+    }
+
+    close(pipefd[0]); 
+    printf("Enter message: ");
+    fgets(parent_msg, MSG_SIZE, stdin); 
+    write(pipefd[1], parent_msg, strlen(parent_msg)+1); 
+    close(pipefd[1]); 
+
+    return 0;
+}
+
+
